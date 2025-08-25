@@ -1,168 +1,158 @@
+# API de Reservas de Hotel
 
-# API para Reservas de Hotel
+A **Hotel Reservation API** é uma API RESTful que permite criar, consultar, atualizar e deletar reservas de quartos em um hotel. A API também verifica conflitos de datas ao criar ou atualizar reservas, garantindo que nenhum quarto seja reservado simultaneamente por múltiplos clientes.
 
-A Hotel Reservation API é uma API RESTful que permite realizar, consultar, atualizar e excluir reservas de quartos em um hotel. A API oferece endpoints para interagir com as reservas, incluindo a verificação de conflitos de reserva, garantindo que os quartos não sejam reservados para o mesmo período por múltiplos clientes.
+---
 
 ## Features
 
-**Cadastrar uma nova reserva**: Permite que o usuário faça uma reserva fornecendo informações como nome, email, número do quarto e as datas de check-in e check-out.
+-   **Cadastrar nova reserva**: Crie reservas fornecendo `quartoId`, datas de check-in e check-out.
+-   **Consultar reservas**: Liste todas as reservas ou busque uma reserva específica por ID (GET `/reservas/`).
+-   **Atualizar reservas**: Modifique informações de uma reserva existente, com validação de disponibilidade.
+-   **Excluir reservas**: Remova reservas já cadastradas.
+-   **Verificação automática de disponibilidade**: Evita conflitos de reservas verificando se o quarto está disponível para o período desejado.
 
-**Consultar reservas**: Permite consultar todas as reservas ou uma reserva específica por ID.
+---
 
-**Atualizar uma reserva**: Permite atualizar as informações de uma reserva existente.
+## Tecnologias utilizadas
 
-**Excluir uma reserva**: Permite deletar uma reserva já existente.
+-   Node.js + Express
+-   TypeScript
+-   Prisma (MySQL) para persistência de dados
+-   Zod para validação de dados
+-   Arquitetura em camadas: Controllers → Services → Repositories
 
-**Verificação de conflito de reserva**: A API verifica se o quarto está disponível para as datas desejadas, evitando a sobrecarga de reservas.
+---
+
 ## Requisitos
 
-- Node.js (versão 18 ou superior)
-- npm (gerenciador de pacotes)
+-   Node.js v18 ou superior
+-   npm
+-   MySQL ou outro banco compatível com Prisma
+
+---
+
 ## Instalação
 
-1. Clone este repositório para o seu diretório local:
-```bash
-git clone https://github.com/lucas-jurgensen/node_hotel_api.git
-```
+1.  Clone o repositório:
+    ```bash
+    git clone https://github.com/lucas-jurgensen/node_hotel_api.git
+    cd node_hotel_api
+    ```
+2.  Instale as dependências:
+    ```bash
+    npm install
+    ```
+3.  Configure seu `.env` com a variável `DATABASE_URL` apontando para seu banco MySQL.
 
-2. Acesse o diretório do projeto:
-```bash
-cd node_hotel_api
-```
+4.  Gere o Prisma Client:
+    ```bash
+    npx prisma generate
+    ```
+5.  Rode as migrations para criar as tabelas:
+    ```bash
+    npx prisma migrate dev --name init
+    ```
+6.  Inicie o servidor:
+    ```bash
+    npm run dev
+    ```
+    O servidor rodará na porta `3000` por padrão.
 
-3. Instale as dependências necessárias:
-```bash
-npm install
-```
-
-4. Inicie o servidor:
-```bash
-npm start
-```
-O servidor será iniciado na porta 3000 por padrão.
-
+---
 
 ## Endpoints
 
-**GET** `/reservations`
+### 1. Criar reserva
 
-Retorna todas as reservas registradas no sistema.
+`POST /reservas/`
 
-- Exemplo
+**Body (JSON):**
+
 ```json
 {
-  "reservations": [
-    {
-      "id": 1,
-      "name": "João Silva",
-      "email": "joao@email.com",
-      "roomNumber": 101,
-      "checkIn": "2025-04-25",
-      "checkOut": "2025-04-28"
+    "quartoId": 1,
+    "checkIn": "2025-09-01T14:00:00.000Z",
+    "checkOut": "2025-09-05T12:00:00.000Z"
+}
+```
+
+Resposta `(201 Created)`
+
+```json
+{
+    "id": 1,
+    "quartoId": 1,
+    "checkIn": "2025-09-01T14:00:00.000Z",
+    "checkOut": "2025-09-05T12:00:00.000Z"
+}
+```
+
+### 2. Atualizar reserva
+
+`PUT /reservas/:id`
+
+**Body (JSON) parcial permitido:**
+
+```json
+{
+    "checkOut": "2025-09-07T12:00:00.000Z"
+}
+```
+
+Resposta `(200 OK)`
+
+```json
+{
+    "message": "Reserva atualizada com sucesso",
+    "updatedReservation": {
+        "id": 1,
+        "quartoId": 1,
+        "checkIn": "2025-09-01T14:00:00.000Z",
+        "checkOut": "2025-09-07T12:00:00.000Z"
     }
-  ]
 }
 ```
 
----
+### 3. Deletar reserva
 
-**POST** `/reservation`
+`DELETE /reservas/:id`
 
-Cria uma nova reserva.
+Resposta `(204 No Content)`
 
-- body (JSON)
 ```json
 {
-  "name": "João Silva",
-  "email": "joao@email.com",
-  "roomNumber": 101,
-  "checkIn": "2025-04-25",
-  "checkOut": "2025-04-28"
+    "message": "Reserva deletada com sucesso"
 }
 ```
-- Resposta (201 Createed)
+
+### 4. Listar reserva
+
+`GET /reservas/`
+
+Resposta `(200 OK)`
+
 ```json
 {
-  "message": "Reserva criada com sucesso",
-  "data": {
-    "id": 1,
-    "name": "João Silva",
-    "email": "joao@email.com",
-    "roomNumber": 101,
-    "checkIn": "2025-04-25",
-    "checkOut": "2025-04-28"
-  }
+    "reservations": [
+        {
+            "id": 1,
+            "quartoId": 101,
+            "checkIn": "2025-09-01T14:00:00.000Z",
+            "checkOut": "2025-09-05T12:00:00.000Z"
+        }
+    ]
 }
 ```
 
----
+## Estrutura do projeto
 
-**PUT** `reservation/:id`
-
-Atualiza os dados de uma reserva existente.
-
-- body (JSON)
-```json
-{
-  "name": "João Silva",
-  "email": "joao@email.com",
-  "roomNumber": 102,
-  "checkIn": "2025-04-26",
-  "checkOut": "2025-04-29"
-}
+```Plaintext
+src/
+ ├─ controllers/      # Controllers da API
+ ├─ services/         # Regras de negócio
+ ├─ repository/       # Acesso ao banco (Prisma)
+ ├─ schema/           # Schemas Zod para validação
+ ├─ utils/            # Prisma Client e DTOs
+ └─ server.ts         # Inicialização do servidor
 ```
-
-- Resposta (200 OK)
-```json
-{
-  "message": "Reserva atualizada com sucesso",
-  "updatedReservation": {
-    "id": 1,
-    "name": "João Silva",
-    "email": "joao@email.com",
-    "roomNumber": 102,
-    "checkIn": "2025-04-26",
-    "checkOut": "2025-04-29"
-  }
-}
-```
-
----
-
-**DELETE** `reservation/:id`
-
-Exclui uma reserva existente.
-
-- Resposta (200 Ok)
-```json
-{
-  "message": "Reserva deletada com sucesso",
-  "reservation": {
-    "id": 1,
-    "name": "João Silva",
-    "email": "joao@email.com",
-    "roomNumber": 101,
-    "checkIn": "2025-04-25",
-    "checkOut": "2025-04-28"
-  }
-}
-```
-## Aprendizados
-
-- Organização de projeto utilizando Node.js, Express e arquitetura em camadas
-- Criação de uma API RESTful completa com rotas, controllers, services, middlewares e validação
-- Validação de dados com Zod, utilizando schemas completos e parciais
-- Persistência de dados com File System utilizando fs/promises
-- Implementação de regras de negócio, como verificação de conflito de reservas por data
-- Criação e uso de middlewares para validação e tratamento de erros
-- Manipulação de JSON para simular um banco de dados
-- Uso de TypeScript para garantir tipagem estática e segurança na aplicação
-
-
-
-
-
-## Licença
-
-Este projeto está licenciado sob a Licença [MIT](https://choosealicense.com/licenses/mit/)
-
