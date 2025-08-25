@@ -1,75 +1,87 @@
-import { deleteReservation, getReservations, newReservation, updateReservation } from "../services/reservationService";
+import type { Request, Response } from "express";
+import type { CriarReservaDTO, UpdateReservaDTO } from "../utils/reserva.dto.js";
+import { atualizarReservaSchema, criarReservaSchema } from "../schema/reservaSchema.js";
+import { atualizarReservarService, criarReservaService, deletarReservarService, listarReservasService } from "../services/reservaService.js";
+import { verificarDisponibilidadeRepository } from "../repository/reservaRepository.js";
 
-export const getReservationsHandler = async (req, res) => {
+export const criarReservaController = async (req: Request, res: Response) => {
     try {
-        const reservations = await getReservations();
-        res.status(200).json({ reservations });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "erro na busca de reservas" });
+        const data: CriarReservaDTO = req.body;
+        const dataParsed = criarReservaSchema.parse(data);
+
+        const novaReserva = await criarReservaService(dataParsed);
+
+        res.status(201).json(novaReserva);
+    } catch (err: any) {
+        res.status(400).json({ message: err.message });
     }
 };
 
-export const newReservationHandler = async (req, res) => {
+export const verificarDisponibilidadeController = async (req: Request, res: Response) => {
     try {
-        const { name, email, roomNumber, checkIn, checkOut } = req.body;
+        const data: CriarReservaDTO = req.body;
+        const dataParsed = criarReservaSchema.parse(data);
 
-        if (!name || !email || !roomNumber || !checkIn || !checkOut) {
-            return res.status(400).json({ error: "Todos os campos são obrigatórios" });
+        const disponivel = await verificarDisponibilidadeRepository(dataParsed.quartoId, dataParsed.checkIn, dataParsed.checkOut);
+
+        if (!disponivel) {
+            res.status(409).json({ disponivel: false, message: "Quarto indisponível para reserva nesse período" });
+            return;
         }
 
-        const data = await newReservation({
-            name,
-            email,
-            roomNumber,
-            checkIn,
-            checkOut,
-        });
-
-        res.status(201).json({ message: "reserva criada com sucesso", data });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: error.message || "erro ao fazer uma nova reserva" });
+        res.status(200).json({ disponivel: true });
+    } catch (err: any) {
+        res.status(400).json({ message: err.message });
     }
 };
 
-export const deleteReservationHandler = async (req, res) => {
+export const atualizarReservaController = async (req: Request, res: Response) => {
+    try {
+        const data: UpdateReservaDTO = req.body;
+        const { id } = req.params;
+
+        if (!id || !Number(id)) {
+            res.status(400).json({ message: "O ID é necessário " });
+        }
+
+        const dataParsed = atualizarReservaSchema.parse(data);
+
+        const reservaAtualizada = await atualizarReservarService(Number(id), data);
+
+        res.status(200).json(reservaAtualizada);
+    } catch (err: any) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+export const deletarReservaController = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        if (!id || isNaN(Number(id))) {
-            return res.status(400).json({ error: "id invalido" });
+        if (!id || !Number(id)) {
+            res.status(400).json({ message: "O ID é necessário " });
+            return;
         }
 
-        const deletedReservation = await deleteReservation(Number(id));
-        if (!deletedReservation) {
-            return res.status(404).json({ error: "reserva não encontrada" });
-        }
+        await deletarReservarService(Number(id));
 
-        res.status(200).json({ message: "reserva deletada com sucesso", reservation: deletedReservation });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "erro ao deletar a reserva" });
+        res.status(204).send();
+    } catch (err: any) {
+        res.status(400).json({ message: err.message });
     }
 };
 
-export const updateReservationHandler = async (req, res) => {
+//fins de consulta
+export const listarReservaController = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const ok = await listarReservasService();
 
-        const reservationId = Number(id);
-
-        if (isNaN(reservationId)) {
-            return res.status(400).json({ error: "ID inválido" });
+        if (!ok) {
+            res.status(400).json({ message: "nenhuma reserva" });
         }
 
-        const { name, email, roomNumber, checkIn, checkOut } = req.body;
-
-        const updatedReservation = await updateReservation(reservationId, req.body);
-
-        res.status(200).json({ message: "reserva atualizada com sucesso", updatedReservation });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "erro ao atualizar a reserva" });
+        res.status(200).json(ok);
+    } catch (err: any) {
+        res.status(400).json({ message: err.message });
     }
 };
